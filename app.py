@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import streamlit as st
 
 from src.scenarios import SCENARIOS
@@ -311,6 +313,9 @@ def init_state() -> None:
 
 
 def render_header() -> None:
+    elevenlabs_ready = bool(os.getenv("ELEVENLABS_API_KEY", "").strip())
+    nebius_ready = bool(os.getenv("NEBIUS_API_KEY", "").strip())
+
     st.markdown(
         """
         <div class="hero">
@@ -320,6 +325,20 @@ def render_header() -> None:
             This demo simulates an employee calling IT support. ElevenLabs handles the live voice conversation,
             while this app shows the handoffs, backend actions, and post-call review in a polished product-style view.
           </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"""
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap; margin-top:-0.15rem; margin-bottom:0.95rem;">
+          <span class="agent-pill" style="background:{'rgba(30, 160, 120, 0.24)' if elevenlabs_ready else 'rgba(244, 162, 97, 0.18)'}; border-color:{'rgba(30, 160, 120, 0.5)' if elevenlabs_ready else 'rgba(244, 162, 97, 0.35)'};">
+            ElevenLabs: {'Connected' if elevenlabs_ready else 'Not configured'}
+          </span>
+          <span class="agent-pill" style="background:{'rgba(30, 160, 120, 0.24)' if nebius_ready else 'rgba(244, 162, 97, 0.18)'}; border-color:{'rgba(30, 160, 120, 0.5)' if nebius_ready else 'rgba(244, 162, 97, 0.35)'};">
+            Nebius: {'Connected' if nebius_ready else 'Not configured'}
+          </span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -364,12 +383,26 @@ def render_sidebar() -> None:
     )
     st.session_state.selected_scenario_id = scenario_id
 
+    agent_id = os.getenv("ELEVENLABS_AGENT_ID", "").strip()
+    webhook_url = os.getenv("ELEVENLABS_WEBHOOK_URL", "").strip()
+    api_key_set = bool(os.getenv("ELEVENLABS_API_KEY", "").strip())
+
     st.sidebar.markdown("### ElevenLabs")
-    st.sidebar.text_input("Agent ID", key="eleven_agent_id", placeholder="agent_...")
-    st.sidebar.text_input("API Key", key="eleven_api_key", placeholder="sk-...")
-    st.sidebar.text_input("Webhook URL", key="eleven_webhook_url", placeholder="https://...")
     st.sidebar.markdown(
-        "<div style='color: rgba(238,244,255,0.72); line-height:1.45; margin-top:0.4rem;'>If these fields are empty, the demo stays in simulated mode.</div>",
+        f"""
+        <div class="card">
+          <div class="muted">Configured from environment</div>
+          <div style="margin-top:0.35rem;line-height:1.55;">
+            <div><strong>Agent ID:</strong> {agent_id or "not set"}</div>
+            <div><strong>API Key:</strong> {"set" if api_key_set else "not set"}</div>
+            <div><strong>Webhook URL:</strong> {webhook_url or "not set"}</div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown(
+        "<div style='color: rgba(238,244,255,0.72); line-height:1.45; margin-top:0.4rem;'>Set these values in your environment or `.env` file. If they are empty, the demo stays in simulated mode.</div>",
         unsafe_allow_html=True,
     )
 
@@ -416,10 +449,10 @@ def render_start_card() -> None:
 def render_status_row(call_state) -> None:
     cols = st.columns(4)
     metrics = [
-        ("Active Agent", call_state.active_agent.replace("_", " ").title() if call_state else "Idle"),
-        ("Resolved", "Yes" if call_state and call_state.resolved else "No"),
-        ("Escalated", "Yes" if call_state and call_state.escalated else "No"),
-        ("Phase", call_state.phase.replace("_", " ").title() if call_state else "Not started"),
+        ("Active Agent", getattr(call_state, "active_agent", "Idle").replace("_", " ").title() if call_state else "Idle"),
+        ("Resolved", "Yes" if getattr(call_state, "resolved", False) else "No"),
+        ("Escalated", "Yes" if getattr(call_state, "escalated", False) else "No"),
+        ("Phase", getattr(call_state, "phase", "Not started").replace("_", " ").title() if call_state else "Not started"),
     ]
     for col, (label, value) in zip(cols, metrics):
         with col:
@@ -440,7 +473,7 @@ def render_transcript(call_state) -> None:
         st.info("Start a call to see the live transcript and handoffs.")
         return
 
-    for entry in call_state.transcript:
+    for entry in getattr(call_state, "transcript", []):
         speaker = entry["speaker"]
         text = entry["text"]
         ts = entry["timestamp"]
@@ -460,7 +493,8 @@ def render_handoff_dashboard(call_state) -> None:
     if not call_state:
         st.info("No active handoff yet.")
         return
-    if not call_state.handoffs:
+    handoffs = getattr(call_state, "handoffs", [])
+    if not handoffs:
         st.markdown(
             """
             <div class="card">
@@ -473,7 +507,7 @@ def render_handoff_dashboard(call_state) -> None:
         return
 
     st.markdown('<div class="timeline">', unsafe_allow_html=True)
-    for item in call_state.handoffs:
+    for item in handoffs:
         st.markdown(
             f"""
             <div class="handoff-card">
@@ -535,7 +569,8 @@ def render_ai_insights(call_state) -> None:
 
 def render_review_panel(call_state) -> None:
     st.subheader("Post-Call Review")
-    if not call_state or not call_state.review:
+    review = getattr(call_state, "review", {}) if call_state else {}
+    if not call_state or not review:
         st.markdown(
             """
             <div class="card card-strong">
@@ -549,7 +584,6 @@ def render_review_panel(call_state) -> None:
             unsafe_allow_html=True,
         )
         return
-    review = call_state.review
     cols = st.columns(4)
     review_metrics = [
         ("Resolved", "Yes" if review.get("resolved") else "No"),

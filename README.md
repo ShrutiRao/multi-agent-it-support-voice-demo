@@ -38,7 +38,31 @@ Start the demo UI:
 streamlit run app.py
 ```
 
+Create a local `.env` file from the example template, then fill in your keys:
+
+```bash
+copy .env.example .env
+```
+
+Edit `.env` and add values like:
+
+```env
+ELEVENLABS_API_KEY=your_elevenlabs_key
+ELEVENLABS_AGENT_ID=your_elevenlabs_agent_id
+ELEVENLABS_WEBHOOK_URL=https://your-public-url/webhooks/elevenlabs/post-call
+
+NEBIUS_API_KEY=your_nebius_key
+NEBIUS_MODEL=your_nebius_model
+NEBIUS_BASE_URL=https://api.tokenfactory.nebius.com/v1
+```
+
 ## ElevenLabs setup
+
+Set these environment variables before running the app:
+
+- `ELEVENLABS_API_KEY`
+- `ELEVENLABS_AGENT_ID`
+- `ELEVENLABS_WEBHOOK_URL`
 
 Use the FastAPI endpoints as webhook targets for ElevenLabs tools:
 
@@ -56,7 +80,7 @@ For the live voice flow, create an ElevenLabs agent that:
 - uses the knowledge base for troubleshooting
 - transfers to escalation when needed
 
-The Streamlit app is the presentation layer for the demo and the post-call review.
+The Streamlit app reads the ElevenLabs settings from the environment and shows them in the sidebar as read-only status. It remains the presentation layer for the demo and the post-call review.
 
 ## Nebius setup
 
