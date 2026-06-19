@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import html
 import os
+import json
 
 import streamlit as st
 
+from src.local_env import load_local_env
 from src.scenarios import SCENARIOS
 from src.service import HelpdeskService, CallOrchestrator
+
+
+load_local_env()
 
 
 st.set_page_config(
@@ -295,6 +301,18 @@ def inject_css() -> None:
             gap: 0.75rem;
             margin-top: 0.85rem;
           }
+          .json-box {
+            background: #07111f;
+            border: 1px solid rgba(149, 190, 255, 0.18);
+            border-radius: 16px;
+            padding: 1rem 1.05rem;
+            color: #dbe8ff;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 0.88rem;
+            line-height: 1.55;
+          }
         </style>
         """,
         unsafe_allow_html=True,
@@ -312,9 +330,17 @@ def init_state() -> None:
         st.session_state.selected_scenario_id = SCENARIOS[0].id
 
 
+def get_elevenlabs_live_url() -> str:
+    return (
+        os.getenv("ELEVENLABS_WEB_VOICE_URL", "").strip()
+        or os.getenv("ELEVENLABS_LIVE_URL", "").strip()
+    )
+
+
 def render_header() -> None:
     elevenlabs_ready = bool(os.getenv("ELEVENLABS_API_KEY", "").strip())
     nebius_ready = bool(os.getenv("NEBIUS_API_KEY", "").strip())
+    live_voice_ready = bool(get_elevenlabs_live_url())
 
     st.markdown(
         """
@@ -335,6 +361,9 @@ def render_header() -> None:
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap; margin-top:-0.15rem; margin-bottom:0.95rem;">
           <span class="agent-pill" style="background:{'rgba(30, 160, 120, 0.24)' if elevenlabs_ready else 'rgba(244, 162, 97, 0.18)'}; border-color:{'rgba(30, 160, 120, 0.5)' if elevenlabs_ready else 'rgba(244, 162, 97, 0.35)'};">
             ElevenLabs: {'Connected' if elevenlabs_ready else 'Not configured'}
+          </span>
+          <span class="agent-pill" style="background:{'rgba(30, 160, 120, 0.24)' if live_voice_ready else 'rgba(244, 162, 97, 0.18)'}; border-color:{'rgba(30, 160, 120, 0.5)' if live_voice_ready else 'rgba(244, 162, 97, 0.35)'};">
+            Live voice: {'Ready' if live_voice_ready else 'Not configured'}
           </span>
           <span class="agent-pill" style="background:{'rgba(30, 160, 120, 0.24)' if nebius_ready else 'rgba(244, 162, 97, 0.18)'}; border-color:{'rgba(30, 160, 120, 0.5)' if nebius_ready else 'rgba(244, 162, 97, 0.35)'};">
             Nebius: {'Connected' if nebius_ready else 'Not configured'}
@@ -385,6 +414,7 @@ def render_sidebar() -> None:
 
     agent_id = os.getenv("ELEVENLABS_AGENT_ID", "").strip()
     webhook_url = os.getenv("ELEVENLABS_WEBHOOK_URL", "").strip()
+    live_url = get_elevenlabs_live_url()
     api_key_set = bool(os.getenv("ELEVENLABS_API_KEY", "").strip())
 
     st.sidebar.markdown("### ElevenLabs")
@@ -395,6 +425,7 @@ def render_sidebar() -> None:
           <div style="margin-top:0.35rem;line-height:1.55;">
             <div><strong>Agent ID:</strong> {agent_id or "not set"}</div>
             <div><strong>API Key:</strong> {"set" if api_key_set else "not set"}</div>
+            <div><strong>Live Voice URL:</strong> {live_url or "not set"}</div>
             <div><strong>Webhook URL:</strong> {webhook_url or "not set"}</div>
           </div>
         </div>
@@ -403,6 +434,59 @@ def render_sidebar() -> None:
     )
     st.sidebar.markdown(
         "<div style='color: rgba(238,244,255,0.72); line-height:1.45; margin-top:0.4rem;'>Set these values in your environment or `.env` file. If they are empty, the demo stays in simulated mode.</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def render_live_voice_panel() -> None:
+    live_url = get_elevenlabs_live_url()
+    st.subheader("Live Voice Panel")
+    if not live_url:
+        st.markdown(
+            """
+            <div class="card card-strong">
+              <div class="muted">Live panel not configured yet</div>
+              <div style="margin-top:0.35rem;line-height:1.6;">
+                Set <strong>ELEVENLABS_WEB_VOICE_URL</strong> in your <code>.env</code> file to embed the ElevenLabs session here.
+                If the live page refuses to frame, the same URL can still be opened directly from the browser.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        return
+
+    safe_url = html.escape(live_url, quote=True)
+    st.markdown(
+        f"""
+        <div class="card card-strong">
+          <div class="muted">Open the live browser voice session</div>
+          <div style="margin-top:0.35rem;line-height:1.55;">
+            ElevenLabs blocks iframe embedding for this page, so the live voice experience has to be opened directly.
+            Use the link below to launch the intake orchestrator in a separate tab.
+          </div>
+          <div style="margin-top:0.45rem;line-height:1.55;color:rgba(238,244,255,0.82);">
+            The intake agent should wait for the caller to describe the issue before routing. If it transfers on the greeting alone, the routing rule is too broad.
+          </div>
+          <div style="margin-top:0.6rem;">
+            <a href="{safe_url}" target="_blank" rel="noreferrer" style="color:#68c8ff;font-weight:700;text-decoration:none;">
+              Open live session in a new tab
+            </a>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <div class="card" style="margin-top:0.8rem;">
+          <div class="muted">Why the embed failed</div>
+          <div style="margin-top:0.35rem;line-height:1.55;">
+            The ElevenLabs page sends browser security headers that prevent it from being framed inside Streamlit.
+            The demo still works, but the session must run in its own tab.
+          </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -642,7 +726,12 @@ def render_review_panel(call_state) -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
     with st.expander("Show raw structured JSON"):
-        st.json(review)
+        st.markdown(
+            f"""
+            <pre class="json-box">{html.escape(json.dumps(review, indent=2, sort_keys=True))}</pre>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_backend_panel(service: HelpdeskService) -> None:
@@ -724,6 +813,7 @@ render_header()
 render_overview()
 render_sidebar()
 render_start_card()
+render_live_voice_panel()
 
 call_state = st.session_state.call_state
 if call_state:

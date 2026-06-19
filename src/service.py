@@ -146,14 +146,15 @@ class CallOrchestrator:
     def start_call(self, scenario: Scenario) -> CallState:
         state = CallState(call_id=f"call_{next(self._call_counter):03d}", scenario_id=scenario.id)
         self._append(state, "system", f"Call started for scenario '{scenario.title}'.")
-        self._append(state, "caller", scenario.issue_description)
-        self._step_intake(state)
+        self._step_intake_greeting(state)
         return state
 
     def advance(self, state: CallState) -> CallState:
         if state.finished:
             return state
-        if state.phase == "verification":
+        if state.phase == "intake_waiting":
+            self._step_intake_capture(state)
+        elif state.phase == "verification":
             self._step_verification(state)
         elif state.phase == "triage":
             self._step_triage(state)
@@ -225,12 +226,22 @@ class CallOrchestrator:
         state.active_agent = to_agent
         state.phase = to_agent
 
-    def _step_intake(self, state: CallState) -> None:
-        scenario = scenario_by_id(state.scenario_id)
+    def _step_intake_greeting(self, state: CallState) -> None:
         self._append(
             state,
             "intake_agent",
-            f"Thanks for calling IT support. I heard: '{scenario.issue_description}'. I'll verify your details and route this the right way.",
+            "Thanks for calling IT support. What issue are you experiencing today?",
+        )
+        state.phase = "intake_waiting"
+        state.active_agent = "intake"
+
+    def _step_intake_capture(self, state: CallState) -> None:
+        scenario = scenario_by_id(state.scenario_id)
+        self._append(state, "caller", scenario.issue_description)
+        self._append(
+            state,
+            "intake_agent",
+            f"I heard: '{scenario.issue_description}'. I'll verify your details and route this the right way.",
         )
         self._handoff(state, "intake", "verification", "Intake captured issue details and moved to verification.")
 

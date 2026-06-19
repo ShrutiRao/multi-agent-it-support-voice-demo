@@ -50,11 +50,14 @@ Edit `.env` and add values like:
 ELEVENLABS_API_KEY=your_elevenlabs_key
 ELEVENLABS_AGENT_ID=your_elevenlabs_agent_id
 ELEVENLABS_WEBHOOK_URL=https://your-public-url/webhooks/elevenlabs/post-call
+ELEVENLABS_WEB_VOICE_URL=https://your-live-elevenlabs-browser-session-url
 
 NEBIUS_API_KEY=your_nebius_key
 NEBIUS_MODEL=your_nebius_model
 NEBIUS_BASE_URL=https://api.tokenfactory.nebius.com/v1
 ```
+
+The app automatically loads `.env` when Streamlit and the API start, so you do not need to enter those values in the UI.
 
 ## ElevenLabs setup
 
@@ -63,6 +66,7 @@ Set these environment variables before running the app:
 - `ELEVENLABS_API_KEY`
 - `ELEVENLABS_AGENT_ID`
 - `ELEVENLABS_WEBHOOK_URL`
+- `ELEVENLABS_WEB_VOICE_URL`
 
 Use the FastAPI endpoints as webhook targets for ElevenLabs tools:
 
@@ -79,6 +83,43 @@ For the live voice flow, create an ElevenLabs agent that:
 - calls the verification and ticket tools
 - uses the knowledge base for troubleshooting
 - transfers to escalation when needed
+
+Use this intake agent prompt pattern so it does not transfer too early:
+
+```text
+You are the Intake Orchestrator for employee IT support.
+
+Goals:
+- Greet the employee warmly.
+- Ask the employee to describe the issue in their own words.
+- Do not transfer immediately after the greeting.
+- Do not hand off until the employee has clearly stated their issue.
+- Ask at most one clarifying question if the issue is still ambiguous.
+- Only route to verification or triage after you have enough detail to identify the support path.
+- If the caller describes a known incident, route to escalation.
+- If the issue appears to be an individual problem, continue through verification and troubleshooting.
+- If the employee has not stated a problem yet, stay in intake and continue the conversation.
+- Do not make a routing decision based only on the greeting.
+- Do not infer the issue from the employee identity alone.
+- Wait for an explicit problem statement before any handoff.
+
+Style:
+- Be concise, calm, and professional.
+- Do not skip the intake step.
+- Do not hand off during the greeting turn.
+- Do not infer the problem before the employee speaks.
+```
+
+Routing guard to configure in ElevenLabs:
+
+- If the agent has not heard a clear issue statement, it must remain in intake.
+- If the agent only knows the employee name or greeting, it must ask a follow-up question instead of transferring.
+- If you are using a workflow or procedure, make the transfer step conditional on captured issue text, not on the first assistant turn.
+- Remove any automatic transfer rule that fires on the greeting alone.
+
+If the agent still transfers too early, the cause is almost certainly the agent workflow or transfer condition in ElevenLabs, not this repo.
+
+Set `ELEVENLABS_WEB_VOICE_URL` to the live browser session URL from ElevenLabs. The Streamlit app will show a launch panel for that session. ElevenLabs blocks iframe embedding for this page, so the live voice experience opens in a new tab instead of inside the Streamlit frame.
 
 The Streamlit app reads the ElevenLabs settings from the environment and shows them in the sidebar as read-only status. It remains the presentation layer for the demo and the post-call review.
 

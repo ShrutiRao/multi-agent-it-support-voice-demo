@@ -5,8 +5,11 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+from src.local_env import load_local_env
 from src.service import HelpdeskService
 
+
+load_local_env()
 
 app = FastAPI(title="Multi-Agent IT Support Demo API")
 service = HelpdeskService()
