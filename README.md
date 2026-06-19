@@ -102,3 +102,48 @@ At a glance:
 - Intake, verification, triage, resolution, and escalation are the active agents.
 - The post-call review stage produces the QA summary.
 - The demo dashboard shows the transcript, handoffs, and review outcome.
+
+## Architecture
+
+```mermaid
+flowchart TB
+    Caller[Employee Caller]
+
+    subgraph EL[ElevenLabs Voice Layer]
+      A[Intake Orchestrator]
+      B[Verification Agent]
+      C[Resolution Agent]
+      D[Escalation Agent]
+      KB[Runbook Knowledge Base]
+    end
+
+    subgraph API[Simulated Helpdesk API]
+      V[/employees/verify/]
+      I[/incidents/{category}/]
+      T[/tickets/]
+      P[/webhooks/elevenlabs/post-call/]
+    end
+
+    subgraph UI[Demo App]
+      S[Streamlit Dashboard]
+      R[Post-Call Review Panel]
+    end
+
+    Caller --> A
+    A --> B
+    B --> C
+    C --> D
+    C -. knowledge lookup .-> KB
+    B -. verify .-> V
+    C -. incident lookup .-> I
+    D -. create ticket .-> T
+    P --> R
+    API --> S
+    A -. transcript/state .-> P
+```
+
+This is the simplest way to think about the system:
+
+- ElevenLabs runs the live conversation and agent handoffs.
+- The FastAPI app simulates the helpdesk systems and receives the post-call webhook.
+- The Streamlit app presents the live demo and structured review.
