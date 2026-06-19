@@ -491,6 +491,45 @@ def render_handoff_dashboard(call_state) -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+def render_ai_insights(call_state) -> None:
+    st.subheader("Nebius Insights")
+    if not call_state:
+        st.info("Nebius will show route suggestions, escalation drafts, and review summaries once a call runs.")
+        return
+
+    cols = st.columns(3)
+    with cols[0]:
+        st.markdown(
+            f"""
+            <div class="card card-strong">
+              <div class="muted">Route Suggestion</div>
+              <div class="metric">{call_state.route_suggestion or "Pending"}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with cols[1]:
+        st.markdown(
+            f"""
+            <div class="card card-strong">
+              <div class="muted">Escalation Draft</div>
+              <div style="margin-top:0.35rem;line-height:1.55;">{call_state.escalation_draft or "No escalation draft yet."}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with cols[2]:
+        st.markdown(
+            f"""
+            <div class="card card-strong">
+              <div class="muted">Transcript Summary</div>
+              <div style="margin-top:0.35rem;line-height:1.55;">{call_state.review.get("summary") if call_state.review else "Summary appears after review."}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 def render_review_panel(call_state) -> None:
     st.subheader("Post-Call Review")
     if not call_state or not call_state.review:
@@ -661,6 +700,9 @@ with left:
     render_transcript(call_state)
 with right:
     render_handoff_dashboard(call_state)
+
+st.divider()
+render_ai_insights(call_state)
 
 st.divider()
 render_review_panel(call_state)

@@ -16,6 +16,7 @@ ElevenLabs Conversational AI fits as the real-time voice layer. This repo provid
 - a Streamlit demo dashboard
 - a small set of IT runbooks
 - API endpoints that ElevenLabs webhook tools can call
+- optional Nebius-powered summarization, routing support, QA review, and escalation drafting
 
 ## Run locally
 
@@ -56,6 +57,23 @@ For the live voice flow, create an ElevenLabs agent that:
 - transfers to escalation when needed
 
 The Streamlit app is the presentation layer for the demo and the post-call review.
+
+## Nebius setup
+
+If you want backend AI assistance for routing, call summaries, QA review, and escalation drafting, set:
+
+- `NEBIUS_API_KEY`
+- `NEBIUS_MODEL`
+- `NEBIUS_BASE_URL`
+
+When those are present, the backend will use Nebius for:
+
+- transcript summarization
+- routing support
+- QA review
+- escalation drafting
+
+If the Nebius settings are empty, the app falls back to deterministic local logic.
 
 ## Call Flow
 
@@ -107,39 +125,11 @@ At a glance:
 
 ```mermaid
 flowchart TB
-    Caller[Employee Caller]
-
-    subgraph EL[ElevenLabs Voice Layer]
-      A[Intake Orchestrator]
-      B[Verification Agent]
-      C[Resolution Agent]
-      D[Escalation Agent]
-      KB[Runbook Knowledge Base]
-    end
-
-    subgraph API[Simulated Helpdesk API]
-      V[/employees/verify/]
-      I[/incidents/{category}/]
-      T[/tickets/]
-      P[/webhooks/elevenlabs/post-call/]
-    end
-
-    subgraph UI[Demo App]
-      S[Streamlit Dashboard]
-      R[Post-Call Review Panel]
-    end
-
-    Caller --> A
-    A --> B
-    B --> C
-    C --> D
-    C -. knowledge lookup .-> KB
-    B -. verify .-> V
-    C -. incident lookup .-> I
-    D -. create ticket .-> T
-    P --> R
-    API --> S
-    A -. transcript/state .-> P
+    Caller[Employee Caller] --> ElevenLabs[ElevenLabs Voice Agents]
+    ElevenLabs --> KB[Runbook Knowledge Base]
+    ElevenLabs --> API[FastAPI Helpdesk API]
+    API --> UI[Streamlit Demo App]
+    API --> Review[Post-Call Review]
 ```
 
 This is the simplest way to think about the system:
@@ -147,3 +137,4 @@ This is the simplest way to think about the system:
 - ElevenLabs runs the live conversation and agent handoffs.
 - The FastAPI app simulates the helpdesk systems and receives the post-call webhook.
 - The Streamlit app presents the live demo and structured review.
+- The API endpoints behind the diagram are `POST /employees/verify`, `GET /incidents/{category}`, `POST /tickets`, and `POST /webhooks/elevenlabs/post-call`.
