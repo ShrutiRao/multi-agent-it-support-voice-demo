@@ -5,7 +5,6 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from src.nebius_client import NebiusClient
 from src.scenarios import Scenario, SCENARIOS
 
 
@@ -45,7 +44,6 @@ class CallState:
 
 class HelpdeskService:
     def __init__(self) -> None:
-        self.nebius = NebiusClient()
         self.directory = {
             "E1042": {"name": "Jordan Lee", "department": "Finance", "manager": "Priya Patel", "status": "active"},
             "E1188": {"name": "Mia Chen", "department": "Marketing", "manager": "Dana Brooks", "status": "active"},
@@ -87,10 +85,18 @@ class HelpdeskService:
     def verify_employee(self, payload: dict[str, Any]) -> dict[str, Any]:
         employee_id = payload.get("employee_id")
         employee_name = payload.get("employee_name", "").strip().lower()
-        record = self.directory.get(employee_id)
+        record = self.directory.get(employee_id) if employee_id else None
+        matched_by_name = False
+        if record is None and employee_name:
+            for candidate_id, candidate in self.directory.items():
+                if candidate["name"].lower() == employee_name:
+                    record = candidate
+                    employee_id = candidate_id
+                    matched_by_name = True
+                    break
         verified = bool(
             record
-            and record["name"].lower() == employee_name
+            and (not employee_name or record["name"].lower() == employee_name)
             and (payload.get("department") in (None, "", record["department"]))
             and (payload.get("manager") in (None, "", record["manager"]))
         )
@@ -129,39 +135,7 @@ class HelpdeskService:
         return self.runbooks.get(key, [])
 
     def build_review(self, call_id: str, transcript: list[dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
-        fallback = CallOrchestrator.build_review_record(call_id=call_id, transcript=transcript, state=state)
-        transcript_text = self._transcript_to_text(transcript)
-        if self.nebius.enabled:
-            return self.nebius.review_call(transcript_text, state, fallback)
-        return fallback
-
-    def suggest_route(self, transcript: list[dict[str, Any]], fallback: str) -> str:
-        transcript_text = self._transcript_to_text(transcript)
-        if self.nebius.enabled:
-            return self.nebius.suggest_route(transcript_text, fallback)
-        return fallback
-
-    def summarize_transcript(self, transcript: list[dict[str, Any]], fallback: str) -> str:
-        transcript_text = self._transcript_to_text(transcript)
-        if self.nebius.enabled:
-            return self.nebius.summarize_transcript(transcript_text, fallback)
-        return fallback
-
-    def draft_escalation(self, transcript: list[dict[str, Any]], state: dict[str, Any], fallback: str) -> str:
-        transcript_text = self._transcript_to_text(transcript)
-        if self.nebius.enabled:
-            return self.nebius.draft_escalation(transcript_text, state, fallback)
-        return fallback
-
-    @staticmethod
-    def _transcript_to_text(transcript: list[dict[str, Any]]) -> str:
-        lines = []
-        for turn in transcript:
-            speaker = str(turn.get("speaker", "unknown")).strip()
-            text = str(turn.get("text", "")).strip()
-            if text:
-                lines.append(f"{speaker}: {text}")
-        return "\n".join(lines)
+        return CallOrchestrator.build_review_record(call_id=call_id, transcript=transcript, state=state)
 
 
 class CallOrchestrator:
@@ -193,7 +167,7 @@ class CallOrchestrator:
 
     def sync_review_if_needed(self, state: CallState) -> CallState:
         if state.phase == "review" and not state.review:
-            state.review = self.service.build_review(
+            state.review = self.build_review_record(
                 call_id=state.call_id,
                 transcript=state.transcript,
                 state=asdict(state),
@@ -285,16 +259,14 @@ class CallOrchestrator:
 
     def _step_triage(self, state: CallState) -> None:
         scenario = scenario_by_id(state.scenario_id)
-        route = self.service.suggest_route(state.transcript, scenario.category)
-        state.route_suggestion = route
-        state.issue_category = route
-        incident = self.service.get_incident_status(route)
+        state.issue_category = scenario.category
+        incident = self.service.get_incident_status(scenario.category)
         state.incident_active = bool(incident["active"])
         if state.incident_active:
             self._append(
                 state,
                 "triage_agent",
-                f"There is an active incident in {route}: {incident['summary']} I'm routing straight to escalation.",
+                f"There is an active incident in {scenario.category}: {incident['summary']} I'm routing straight to escalation.",
             )
             state.follow_up_required = True
             self._handoff(state, "triage", "escalation", "Active incident detected.")
@@ -303,9 +275,10 @@ class CallOrchestrator:
         self._append(
             state,
             "triage_agent",
-            "This looks like an individual issue, not a known incident. I'll try the runbook first.",
+            "This looks like an individual issue, not a known incident. I’ll try the runbook first.",
         )
         self._handoff(state, "triage", "resolution", "No active incident; attempting runbook resolution.")
+
     def _step_resolution(self, state: CallState) -> None:
         scenario = scenario_by_id(state.scenario_id)
         steps = self.service.runbook_steps(scenario.runbook_key)
@@ -315,38 +288,29 @@ class CallOrchestrator:
             self._append(
                 state,
                 "resolution_agent",
-                "We've completed the guided steps and the issue looks resolved. Please try signing in again.",
+                "We’ve completed the guided steps and the issue looks resolved. Please try signing in again.",
             )
             state.phase = "review"
             state.active_agent = "review"
-            self._append(state, "system", "The issue is resolved. I'm moving to the post-call review.")
+            self._append(state, "system", "The issue is resolved. I’m moving to the post-call review.")
             return
 
         self._append(
             state,
             "resolution_agent",
-            "I tried the runbook steps, but the issue is still there. I'm escalating with the steps we already tried.",
+            "I tried the runbook steps, but the issue is still there. I’m escalating with the steps we already tried.",
         )
         state.follow_up_required = True
         self._handoff(state, "resolution", "escalation", "Runbook did not resolve the issue.")
+
     def _step_escalation(self, state: CallState) -> None:
         scenario = scenario_by_id(state.scenario_id)
-        escalation_fallback = (
-            f"Escalate issue for {scenario.employee_name} in {scenario.category}. "
-            f"Verification: {'verified' if state.verified else 'unverified'}. "
-            f"Attempted steps: {', '.join(state.attempted_steps) or 'none'}."
-        )
-        state.escalation_draft = self.service.draft_escalation(
-            state.transcript,
-            asdict(state),
-            escalation_fallback,
-        )
         ticket = self.service.create_ticket(
             {
                 "caller_name": scenario.employee_name,
                 "employee_id": scenario.employee_id,
-                "category": state.issue_category or scenario.category,
-                "summary": state.escalation_draft or scenario.issue_description,
+                "category": scenario.category,
+                "summary": scenario.issue_description,
                 "priority": "high" if state.incident_active else "medium",
                 "verification_status": "verified" if state.verified else "unverified",
                 "attempted_steps": state.attempted_steps,
@@ -358,8 +322,8 @@ class CallOrchestrator:
         self._append(
             state,
             "escalation_agent",
-            f"I've created ticket {ticket['ticket_id']} and sent this to the right support queue.",
+            f"I’ve created ticket {ticket['ticket_id']} and sent this to the right support queue.",
         )
         state.phase = "review"
         state.active_agent = "review"
-        self._append(state, "system", "The issue has been escalated. I'm moving to the post-call review.")
+        self._append(state, "system", "The issue has been escalated. I’m moving to the post-call review.")

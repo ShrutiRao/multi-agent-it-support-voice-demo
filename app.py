@@ -496,6 +496,9 @@ def render_ai_insights(call_state) -> None:
     if not call_state:
         st.info("Nebius will show route suggestions, escalation drafts, and review summaries once a call runs.")
         return
+    route_suggestion = getattr(call_state, "route_suggestion", "")
+    escalation_draft = getattr(call_state, "escalation_draft", "")
+    review_summary = call_state.review.get("summary") if getattr(call_state, "review", None) else ""
 
     cols = st.columns(3)
     with cols[0]:
@@ -503,7 +506,7 @@ def render_ai_insights(call_state) -> None:
             f"""
             <div class="card card-strong">
               <div class="muted">Route Suggestion</div>
-              <div class="metric">{call_state.route_suggestion or "Pending"}</div>
+              <div class="metric">{route_suggestion or "Pending"}</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -513,7 +516,7 @@ def render_ai_insights(call_state) -> None:
             f"""
             <div class="card card-strong">
               <div class="muted">Escalation Draft</div>
-              <div style="margin-top:0.35rem;line-height:1.55;">{call_state.escalation_draft or "No escalation draft yet."}</div>
+              <div style="margin-top:0.35rem;line-height:1.55;">{escalation_draft or "No escalation draft yet."}</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -523,7 +526,7 @@ def render_ai_insights(call_state) -> None:
             f"""
             <div class="card card-strong">
               <div class="muted">Transcript Summary</div>
-              <div style="margin-top:0.35rem;line-height:1.55;">{call_state.review.get("summary") if call_state.review else "Summary appears after review."}</div>
+              <div style="margin-top:0.35rem;line-height:1.55;">{review_summary or "Summary appears after review."}</div>
             </div>
             """,
             unsafe_allow_html=True,
