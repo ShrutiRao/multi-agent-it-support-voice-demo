@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Multi-Agent IT Support Voice Demo Documentation</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1f1f1f;
+      margin: 48px;
+      line-height: 1.45;
+      font-size: 11pt;
+    }
+    h1 {
+      font-size: 26pt;
+      margin: 0 0 6px 0;
+      font-weight: normal;
+      color: #000;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 14px;
+    }
+    h2 {
+      font-size: 16pt;
+      color: #2e74b5;
+      margin: 20px 0 8px;
+    }
+    h3 {
+      font-size: 13pt;
+      color: #1f4d78;
+      margin: 14px 0 6px;
+    }
+    p { margin: 0 0 8px 0; }
+    ul { margin: 4px 0 8px 20px; }
+    li { margin: 0 0 4px 0; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 8px 0 12px 0;
+      font-size: 10.5pt;
+    }
+    th, td {
+      border: 1px solid #c6cfdb;
+      padding: 8px 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #e8eef5;
+      font-weight: bold;
+    }
+    pre {
+      background: #f4f6f9;
+      border: 1px solid #d8dee8;
+      padding: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "Courier New", monospace;
+      font-size: 9.5pt;
+      margin: 8px 0 12px 0;
+    }
+    .note {
+      background: #f4f6f9;
+      border-left: 4px solid #2e74b5;
+      padding: 10px 12px;
+      margin: 8px 0 12px 0;
+    }
+    .cover {
+      padding: 0 0 12px 0;
+      border: none;
+      background: transparent;
+      border-radius: 0;
+      margin-bottom: 18px;
+    }
+    .author {
+      font-size: 12pt;
+      color: #333;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .lede {
+      color: #4d4d4d;
+      max-width: 820px;
+    }
+    .placeholder {
+      background: #f4f6f9;
+      border: 1px dashed #b6c2d0;
+      border-radius: 12px;
+      padding: 24px 18px;
+      margin: 10px 0 16px 0;
+      text-align: center;
+    }
+    .placeholder-title {
+      font-weight: bold;
+      color: #1f4d78;
+      margin-bottom: 6px;
+    }
+    .placeholder-copy {
+      color: #5a6775;
+    }
+  </style>
+</head>
+<body>
+  <div class="cover">
+    <h1>Multi-Agent IT Support Voice Demo</h1>
+    <div class="subtitle">Architecture, tools, agent roster, routing logic, and sample prompts</div>
+    <div class="author">Author: Angie</div>
+    <p class="lede">This document summarizes the architecture, the reason each tool is used, the agent roster, routing behavior, and example prompts for the ElevenLabs setup used by this repository.</p>
+  </div>
+
+  
+    <section class="section">
+      <h2>At a Glance</h2>
+      
+    <table>
+      <thead><tr><th>Area</th><th>Summary</th></tr></thead>
+      <tbody>
+        <tr><td>Primary user experience</td><td>Live browser-based employee IT support call with multi-agent handoff.</td></tr><tr><td>Demo backend</td><td>FastAPI service that simulates employee verification, incidents, ticketing, and post-call review.</td></tr><tr><td>UI layer</td><td>Streamlit dashboard for scenario control, transcript review, handoff visualization, and structured QA output.</td></tr><tr><td>AI orchestration</td><td>ElevenLabs handles the live voice conversation; Nebius adds optional summarization, routing, review, and escalation drafting.</td></tr>
+      </tbody>
+    </table>
+    
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>Architecture</h2>
+      
+    <p>The architecture is intentionally split into a live voice front door, a lightweight control plane, and a simulated helpdesk backend. This keeps the demo easy to explain during a presentation while still showing realistic agent specialization and handoff boundaries.</p>
+    <pre>Employee caller
+      |
+      v
+ElevenLabs Intake Orchestrator
+      |
+      +--&gt; Employee Verification  ---&gt; /employees/verify
+      +--&gt; IT Resolution Specialist -&gt; /incidents/{category} + runbooks
+      +--&gt; IT Escalation Coordinator -&gt; /tickets
+      |
+      v
+Post-call review webhook -&gt; /webhooks/elevenlabs/post-call
+      |
+      v
+Streamlit demo dashboard</pre>
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>Tools Used and Why</h2>
+      
+    <table>
+      <thead><tr><th>Tool</th><th>Why it is used</th><th>Where it appears in the repo</th></tr></thead>
+      <tbody>
+        <tr><td>ElevenLabs Conversational AI</td><td>Live voice interaction layer, turn-taking, and agent handoffs.</td><td>Configured externally; live session URL is loaded from `.env`.</td></tr><tr><td>FastAPI</td><td>Simulated helpdesk backend and webhook receiver for verification, incidents, tickets, and post-call review.</td><td>See `api.py`.</td></tr><tr><td>Streamlit</td><td>Operator-facing demo UI with scenario selection, transcript view, handoff dashboard, and review panel.</td><td>See `app.py`.</td></tr><tr><td>Nebius</td><td>Optional AI support for transcript summarization, routing guidance, QA review, and escalation drafting.</td><td>See `src/nebius_client.py` and `src/service.py`.</td></tr><tr><td>Markdown runbooks</td><td>Small knowledge base for guided troubleshooting and RAG-style resolution support.</td><td>See `runbooks/`.</td></tr><tr><td>ngrok or public deployment</td><td>Makes the local webhook endpoints reachable from ElevenLabs when testing live.</td><td>Used outside the repo when running locally.</td></tr>
+      </tbody>
+    </table>
+    
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>Agent Roster</h2>
+      
+    <table>
+      <thead><tr><th>Agent</th><th>Primary job</th><th>Key tools</th><th>Handoff rule</th></tr></thead>
+      <tbody>
+        <tr><td>IT Intake Orchestrator</td><td>Greet the caller, capture the issue, and route only after the problem is stated.</td><td>Conversation flow, optional workflow/procedure, incident lookup.</td><td>Stays in intake until it hears a real issue statement.</td></tr><tr><td>Employee Verification</td><td>Confirm caller identity and basic employee details.</td><td>POST /employees/verify.</td><td>Moves forward only after verification succeeds or a restricted path is chosen.</td></tr><tr><td>IT Resolution Specialist</td><td>Use runbooks to attempt a safe fix.</td><td>GET /incidents/{category}; knowledge base runbooks.</td><td>Escalates if the issue remains unresolved or if a known incident is active.</td></tr><tr><td>IT Escalation Coordinator</td><td>Create a ticket and summarize what was tried.</td><td>POST /tickets.</td><td>Ends the live call after escalation details are confirmed.</td></tr><tr><td>Post-call Review</td><td>Generate structured QA review data.</td><td>POST /webhooks/elevenlabs/post-call.</td><td>Runs after the call, not during the live voice flow.</td></tr>
+      </tbody>
+    </table>
+    
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>Agent Deep Dive</h2>
+      
+    <h3>IT Intake Orchestrator</h3>
+    <p>Purpose: this agent is the live front door. It greets the employee, asks what is wrong, and holds the conversation open until the issue is actually stated.</p>
+    <p>Routing logic: do not hand off during the greeting turn. If the caller only says hello or provides identity details, stay in intake and ask one follow-up question. Route to verification or triage only after the issue is explicit.</p>
+    <pre>You are the Intake Orchestrator for employee IT support.
+
+Goals:
+- Greet the employee warmly.
+- Ask the employee to describe the issue in their own words.
+- Do not transfer immediately after the greeting.
+- Do not hand off until the employee has clearly stated their issue.
+- Ask at most one clarifying question if the issue is still ambiguous.
+- Only route to verification or triage after you have enough detail to identify the support path.
+- If the caller describes a known incident, route to escalation.
+- If the issue appears to be an individual problem, continue through verification and troubleshooting.
+
+Style:
+- Be concise, calm, and professional.
+- Do not skip the intake step.
+- Do not hand off during the greeting turn.
+- Do not infer the problem before the employee speaks.</pre>
+    <h3>Employee Verification</h3>
+    <p>Purpose: confirm the caller is the right employee and collect the minimum details needed for support actions.</p>
+    <p>Routing logic: if verification succeeds, continue to triage or resolution. If it fails, move to a restricted path and avoid sensitive actions.</p>
+    <pre>You are the Verification Agent for employee IT support.
+
+Goals:
+- Confirm the employee&#x27;s identity using the provided details.
+- Ask for one missing field at a time if needed.
+- Verify name, employee ID, department, and manager when available.
+- If verification fails, keep the caller in a restricted support path.
+- If verification succeeds, route to triage or resolution.
+- Never resolve issues that require identity verification before confirmation.</pre>
+    <h3>IT Resolution Specialist</h3>
+    <p>Purpose: attempt a safe guided fix using the small runbook set in the repository.</p>
+    <p>Routing logic: if an active incident exists, do not waste time on local troubleshooting. If the issue is not resolved after the runbook steps, escalate with the attempted steps included.</p>
+    <pre>You are the Resolution Specialist for employee IT support.
+
+Goals:
+- Use the knowledge base runbooks to guide troubleshooting.
+- Try the simplest safe steps first.
+- Limit the session to a small number of clear attempts.
+- Summarize what was tried.
+- If the issue is resolved, confirm success and end cleanly.
+- If the issue is not resolved, escalate with context.
+- Do not invent fixes that are not in the runbooks.</pre>
+    <h3>IT Escalation Coordinator</h3>
+    <p>Purpose: capture the final summary, create the ticket, and close the live call professionally.</p>
+    <p>Routing logic: once a ticket is created and the next support path is clear, do not bounce back to earlier agents unless the demo explicitly needs it.</p>
+    <pre>You are the Escalation Coordinator for employee IT support.
+
+Goals:
+- Capture a concise issue summary.
+- Capture what was already tried.
+- Create a ticket with the right priority.
+- State the next support path clearly.
+- Reassure the employee about next steps.
+- End the live call after escalation details are confirmed.</pre>
+    <h3>Post-call Review</h3>
+    <p>Purpose: produce structured QA output after the call ends.</p>
+    <p>Routing logic: this is a backend-only step. It consumes the transcript and call state from the webhook and writes a review summary used by the Streamlit dashboard.</p>
+    <pre>The review step is not a live voice agent.
+It is a webhook-backed backend step that receives the completed call transcript and call state.
+It then generates a review record with resolution status, verification status, escalation status, follow-up status, and QA notes.</pre>
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>Routing Logic</h2>
+      
+    <table>
+      <thead><tr><th>Step</th><th>Condition</th><th>Next agent</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Caller has not stated the issue yet.</td><td>Stay in intake</td><td>Ask for the issue; do not transfer on greeting alone.</td></tr><tr><td>2</td><td>Issue is stated and identity details are needed.</td><td>Employee Verification</td><td>Collect name, employee ID, department, and manager.</td></tr><tr><td>3</td><td>Issue is an individual problem and no active incident exists.</td><td>IT Resolution Specialist</td><td>Use the runbook and KB.</td></tr><tr><td>4</td><td>Active incident exists or runbook fails.</td><td>IT Escalation Coordinator</td><td>Create ticket and hand off cleanly.</td></tr><tr><td>5</td><td>Call ends.</td><td>Post-call review webhook</td><td>Generate the structured QA record.</td></tr>
+      </tbody>
+    </table>
+    
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>Visual Placeholders</h2>
+      
+    <div class="placeholder">
+      <div class="placeholder-title">UI Snapshot Placeholder</div>
+      <div class="placeholder-copy">Place a screenshot of the Streamlit dashboard here.</div>
+    </div>
+    
+    </section>
+    
+  
+    <section class="section">
+      <h2>Visual Placeholders</h2>
+      
+    <div class="placeholder">
+      <div class="placeholder-title">ElevenLabs Workflow Snapshot Placeholder</div>
+      <div class="placeholder-copy">Place a screenshot of the ElevenLabs agent workflow or transfer setup here.</div>
+    </div>
+    
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>Repository Map</h2>
+      
+    <table>
+      <thead><tr><th>File</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>app.py</td><td>Streamlit user interface, live status badges, transcript view, handoff dashboard, and review panel.</td></tr><tr><td>api.py</td><td>FastAPI service that receives verification, incident lookup, ticketing, and post-call webhook requests.</td></tr><tr><td>src/service.py</td><td>Call-state engine and deterministic support workflow used by the demo.</td></tr><tr><td>src/scenarios.py</td><td>Scenario definitions used to simulate different employee IT support calls.</td></tr><tr><td>src/nebius_client.py</td><td>Optional Nebius-backed helpers for summarization, routing, review, and escalation drafting.</td></tr><tr><td>runbooks/*.md</td><td>Small support knowledge base used by the resolution agent.</td></tr>
+      </tbody>
+    </table>
+    
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>What I Learned</h2>
+      
+    <ul>
+      <li>A good live voice demo needs narrow agents with explicit handoffs instead of one broad assistant.</li>
+      <li>The intake stage must wait for an actual issue statement, not just a greeting or employee name.</li>
+      <li>A small helpdesk backend makes the demo feel realistic without adding unnecessary complexity.</li>
+      <li>Structured post-call review is helpful because it lets the audience see what happened after the call ended.</li>
+      <li>Visual placeholders are useful in a presentation doc because they remind the audience where screenshots and workflow diagrams should go.</li>
+      <li>It is easier to explain a multi-agent system when each agent has a single job and a simple routing rule.</li>
+    </ul>
+  
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>Environment Variables</h2>
+      
+    <table>
+      <thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>ELEVENLABS_API_KEY</td><td>Enables ElevenLabs connectivity.</td></tr><tr><td>ELEVENLABS_AGENT_ID</td><td>Identifies the live voice agent.</td></tr><tr><td>ELEVENLABS_WEBHOOK_URL</td><td>Public webhook target for post-call or tool callbacks.</td></tr><tr><td>ELEVENLABS_WEB_VOICE_URL</td><td>Live browser session URL for the voice experience.</td></tr><tr><td>NEBIUS_API_KEY</td><td>Optional AI helper access.</td></tr><tr><td>NEBIUS_MODEL</td><td>Model name used by the Nebius client.</td></tr><tr><td>NEBIUS_BASE_URL</td><td>OpenAI-compatible Nebius API base URL.</td></tr>
+      </tbody>
+    </table>
+    
+    </section>
+    
+
+  
+    <section class="section">
+      <h2>Closing Summary</h2>
+      
+    <p>This project demonstrates a realistic employee IT support workflow where specialized agents collaborate instead of a single general-purpose assistant doing everything. The design keeps the demo approachable for a live presentation while still showing concrete orchestration, tool usage, routing rules, and structured post-call QA.</p>
+  
+    </section>
+    
+</body>
+</html>
