@@ -25,6 +25,7 @@ This repo now includes a LangSmith-backed evaluation setup for the Week 3 intake
 Artifacts:
 
 - `docs/intake_routing_golden_dataset.xlsx`
+- `docs/evaluation.md`
 - LangSmith dataset: `intake-routing-golden-v1`
 - LangSmith project: `multi-agent-it-support-intake-eval`
 - Eval runner: `scripts/langsmith_baseline.py`
@@ -44,6 +45,8 @@ py scripts/langsmith_baseline.py --mode llm
 ```
 
 Use `--mode heuristic` only for smoke testing the wiring.
+
+See `docs/evaluation.md` for the current baseline snapshot and rerun instructions.
 
 ## Run locally
 
