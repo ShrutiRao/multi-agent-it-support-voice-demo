@@ -18,6 +18,33 @@ ElevenLabs Conversational AI fits as the real-time voice layer. This repo provid
 - API endpoints that ElevenLabs webhook tools can call
 - optional Nebius-powered summarization, routing support, QA review, and escalation drafting
 
+## Evaluation
+
+This repo now includes a LangSmith-backed evaluation setup for the Week 3 intake orchestrator.
+
+Artifacts:
+
+- `docs/intake_routing_golden_dataset.xlsx`
+- LangSmith dataset: `intake-routing-golden-v1`
+- LangSmith project: `multi-agent-it-support-intake-eval`
+- Eval runner: `scripts/langsmith_baseline.py`
+
+Current baseline metrics:
+
+- route accuracy
+- intake hold safety
+- p50 latency
+- token usage
+- estimated cost
+
+Run the baseline eval:
+
+```bash
+py scripts/langsmith_baseline.py --mode llm
+```
+
+Use `--mode heuristic` only for smoke testing the wiring.
+
 ## Run locally
 
 Install dependencies:

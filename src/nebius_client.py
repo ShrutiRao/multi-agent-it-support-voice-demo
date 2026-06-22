@@ -12,6 +12,7 @@ from urllib import error, request
 class NebiusResult:
     text: str
     data: dict[str, Any] | None = None
+    usage: dict[str, Any] | None = None
 
 
 class NebiusClient:
@@ -113,6 +114,81 @@ class NebiusClient:
         data = result.data or {}
         return str(data.get("ticket_summary") or result.text or fallback).strip()
 
+    def decide_intake_route(
+        self,
+        caller_input: str,
+        fallback: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        fallback = fallback or {}
+        fallback_action = str(fallback.get("observed_next_action") or "ask_clarifying_question")
+        fallback_route = str(fallback.get("observed_route") or "intake")
+        fallback_reason = str(fallback.get("reason") or "Fallback routing result.")
+
+        if not self.enabled:
+            return {
+                "observed_next_action": fallback_action,
+                "observed_route": fallback_route,
+                "reason": fallback_reason,
+                "used_llm": False,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            }
+
+        result = self._chat_json(
+            system_prompt=(
+                "You are an intake orchestrator for employee IT support. "
+                "Return only valid JSON with keys: next_action, route, reason. "
+                "Use next_action values from this set only: "
+                "stay_in_intake, ask_clarifying_question, route_to_verification, route_to_escalation. "
+                "Use route values from this set only: intake, verification, escalation. "
+                "Rules: if the caller only greets or identifies themselves, stay_in_intake. "
+                "If the issue is ambiguous, ask_clarifying_question and keep the caller in intake. "
+                "If the caller gives a clear individual support issue, route_to_verification. "
+                "If the caller describes a known incident or broad outage, route_to_escalation."
+            ),
+            user_prompt=(
+                "Classify the caller's next best intake action.\n\n"
+                f"Caller input:\n{caller_input}\n\n"
+                f"Fallback routing:\n{json.dumps(fallback, ensure_ascii=True)}"
+            ),
+        )
+        data = result.data or {}
+        action = str(data.get("next_action") or data.get("observed_next_action") or fallback_action).strip()
+        route = str(data.get("route") or data.get("observed_route") or fallback_route).strip()
+        reason = str(data.get("reason") or fallback_reason).strip()
+
+        valid_actions = {
+            "stay_in_intake",
+            "ask_clarifying_question",
+            "route_to_verification",
+            "route_to_escalation",
+        }
+        valid_routes = {"intake", "verification", "escalation"}
+        if action not in valid_actions:
+            action = fallback_action
+        if route not in valid_routes:
+            if action == "route_to_verification":
+                route = "verification"
+            elif action == "route_to_escalation":
+                route = "escalation"
+            else:
+                route = "intake"
+
+        usage = result.usage or {}
+        prompt_tokens = int(usage.get("prompt_tokens") or 0)
+        completion_tokens = int(usage.get("completion_tokens") or 0)
+        total_tokens = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
+        return {
+            "observed_next_action": action,
+            "observed_route": route,
+            "reason": reason,
+            "used_llm": True,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+        }
+
     def _chat_json(self, system_prompt: str, user_prompt: str) -> NebiusResult:
         if not self.enabled:
             return NebiusResult(text="", data=None)
@@ -151,7 +227,11 @@ class NebiusClient:
             .get("message", {})
             .get("content", "")
         )
-        return NebiusResult(text=str(content), data=self._parse_json_like(str(content)))
+        return NebiusResult(
+            text=str(content),
+            data=self._parse_json_like(str(content)),
+            usage=parsed.get("usage"),
+        )
 
     @staticmethod
     def _parse_json_like(text: str) -> dict[str, Any] | None:
