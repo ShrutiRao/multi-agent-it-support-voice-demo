@@ -51,6 +51,7 @@ py scripts/langsmith_baseline.py --mode llm
 Use `--mode heuristic` only for smoke testing the wiring.
 
 See `docs/evaluation.md` for the current baseline snapshot and rerun instructions.
+See `docs/evaluation.md` for the full evaluation story, LLM-as-judge notes, and final results.
 
 ## Run locally
 

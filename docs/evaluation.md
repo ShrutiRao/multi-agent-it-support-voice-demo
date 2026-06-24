@@ -213,6 +213,10 @@ Expected effect:
 
 The routing change moved the agent in the right direction: it is safer on ambiguous intake cases and also more accurate overall. The tradeoff is a moderate token increase, which raised cost slightly, but latency stayed effectively flat. For the cohort demo, this is a strong example of a measured improvement: one targeted prompt change, one rerun, and a clear numeric delta.
 
+### What’s Next
+
+The next improvement target is adversarial and borderline intake handling, especially cases like prompt injection or callers who refuse to describe the issue. If I had another iteration, I would tighten the clarification policy, add a stronger adversarial guardrail, and rerun the same golden dataset to measure whether `clarification_quality` and `issue_capture_completeness` improve without hurting route accuracy.
+
 ## How To Re-run
 
 ```bash
