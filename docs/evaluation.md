@@ -76,7 +76,7 @@ The judge calibration run looks healthy: the route and safety metrics stayed str
 
 In the full 30-case run, the intake orchestrator routed correctly on 27 of 30 cases and stayed safely in intake on 28 of 30, which shows the prompt change improved the core decision boundary. The LLM judges also surfaced the remaining weakness: the agent is still less complete on conversation depth than on final routing, especially in adversarial and borderline cases. That means the system is good enough for a demo story, but the next improvement should focus on stronger clarification handling and better resistance to prompt-injection-style inputs.
 
-### What The Full Run Says
+### What the Full Run Says
 
 The routing side is in good shape: 27 of 30 cases matched the expected next action, and the only route misses were concentrated in adversarial or edge-case prompts. The main routing failures were:
 
@@ -202,7 +202,7 @@ Expected effect:
 
 The routing change moved the agent in the right direction: it is safer on ambiguous intake cases and also more accurate overall. The tradeoff is a moderate token increase, which raised cost slightly, but latency stayed effectively flat. For the cohort demo, this is a strong example of a measured improvement: one targeted prompt change, one rerun, and a clear numeric delta.
 
-### What’s Next
+### What's Next
 
 The next improvement target is adversarial and borderline intake handling, especially cases like prompt injection or callers who refuse to describe the issue. If I had another iteration, I would tighten the clarification policy, add a stronger adversarial guardrail, and rerun the same golden dataset to measure whether `clarification_quality` and `issue_capture_completeness` improve without hurting route accuracy.
 
