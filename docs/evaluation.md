@@ -1,6 +1,6 @@
 # Evaluation
 
-This document captures the current LangSmith baseline for the Week 3 intake orchestrator.
+This document captures the current LangSmith baseline for the Week 3 intake orchestrator. It uses code-based scoring for routing and LangSmith LLM-as-judge scoring for clarification quality and issue capture completeness on the full trace/conversation.
 
 ## Evaluation One Liner
 
@@ -22,6 +22,77 @@ I will measure first-pass resolution rate, correct escalation/handoff rate, and 
 | Improvement hypotheses | Tighten the intake prompt to require an explicit issue statement before routing. Add a routing gate or classifier before handoff. Improve issue extraction so the agent captures the key details earlier. Add retrieval or policy checks for known incidents so escalation happens sooner when appropriate. |
 | Post-improvement run | Re-run the exact same golden dataset after changes and report the new metrics, the delta versus baseline, and the LangSmith experiment link. |
 | What is next | The most likely remaining failure is ambiguous-intake handling. Next, I would expand borderline cases, tighten the clarification policy, and add production monitoring for premature handoff rate, escalation accuracy, and cost drift. |
+
+### Judge Notes
+
+The evaluation now includes two LLM-as-judge metrics on the full trace/conversation:
+
+- `clarification_quality`
+- `issue_capture_completeness`
+
+Route correctness remains code-based exact match. The judge scores are rubric-based, and the full run should still be checked by hand on the most important disagreements before trusting it completely. If the judge returns malformed JSON, the runner falls back to a conservative score so the eval still completes.
+
+### Judge Calibration Snapshot
+
+- Date of run: June 24, 2026
+- LangSmith experiment: `baseline-intake-routing-3da540bb`
+- LangSmith compare URL: https://smith.langchain.com/o/8512d3fc-b1cd-4248-a3e7-a219ab23b792/datasets/6663d81d-bd5f-405b-9538-aec25b4d9dba/compare?selectedSessions=30e8a9f7-b9cf-4b2a-80b9-8728f7bde03e
+- Run count: `30`
+
+### Calibration Metrics
+
+- route_accuracy: `0.9000`
+- intake_hold_safety: `0.9333`
+- clarification_quality: `0.8150`
+- issue_capture_completeness: `0.7917`
+- p50_latency_s: `2.4185`
+- avg_cost_usd: `0.0008`
+- avg_prompt_tokens: `306.7333`
+- avg_completion_tokens: `158.4000`
+- avg_total_tokens: `465.1333`
+
+### Calibration Interpretation
+
+The judge calibration run looks healthy: the route and safety metrics stayed strong, the new judge scores are non-trivial and stable enough to inspect, and latency/cost are still within the demo-friendly range. The main next step is to open the important traces in LangSmith, compare the judge labels with your hand labels, and only tweak the rubric if the judge is clearly too strict or too loose on a repeatable pattern.
+
+### Latest Full-Dataset Run
+
+- Date of run: June 24, 2026
+- LangSmith experiment: `baseline-intake-routing-3da540bb`
+- LangSmith compare URL: https://smith.langchain.com/o/8512d3fc-b1cd-4248-a3e7-a219ab23b792/datasets/6663d81d-bd5f-405b-9538-aec25b4d9dba/compare?selectedSessions=30e8a9f7-b9cf-4b2a-80b9-8728f7bde03e
+- Run count: `30`
+
+### Full-Dataset Metrics
+
+- route_accuracy: `0.9000`
+- intake_hold_safety: `0.9333`
+- clarification_quality: `0.8150`
+- issue_capture_completeness: `0.7917`
+- p50_latency_s: `2.4185`
+- avg_cost_usd: `0.0008`
+- avg_prompt_tokens: `306.7333`
+- avg_completion_tokens: `158.4000`
+- avg_total_tokens: `465.1333`
+
+In the full 30-case run, the intake orchestrator routed correctly on 27 of 30 cases and stayed safely in intake on 28 of 30, which shows the prompt change improved the core decision boundary. The LLM judges also surfaced the remaining weakness: the agent is still less complete on conversation depth than on final routing, especially in adversarial and borderline cases. That means the system is good enough for a demo story, but the next improvement should focus on stronger clarification handling and better resistance to prompt-injection-style inputs.
+
+### What The Full Run Says
+
+The routing side is in good shape: 27 of 30 cases matched the expected next action, and the only route misses were concentrated in adversarial or edge-case prompts. The main routing failures were:
+
+- `E19`: the agent routed to verification when the case should have stayed in intake and asked one clarifying question
+- `A30`: the agent accepted a misleading prompt-injection style instruction and routed to verification
+- `A28`: the agent stayed in intake instead of asking the caller for a real issue description
+
+That pattern is useful because it shows the remaining work is not random. The agent is mostly right on normal support cases, and the weak spots are boundary cases where the caller tries to steer the system or withholds details.
+
+The judge metrics tell a similar story:
+
+- `clarification_quality` is strong overall, but the lowest scores cluster in the known-failure and adversarial buckets where the conversation is intentionally thin or manipulated.
+- `issue_capture_completeness` is the weakest of the new metrics, especially on known failures, which means the agent still leaves some cases under-specified even when it gets the final route right.
+- Happy-path cases look good, which is what you want for a demo-ready evaluation: routine calls work, and the remaining failures are concentrated where you would expect them.
+
+Bottom line: the full run supports the story that the prompt fix improved the core routing behavior, while the LLM judges expose the remaining weakness in conversation depth and adversarial handling.
 
 ## Final Evaluation Summary
 

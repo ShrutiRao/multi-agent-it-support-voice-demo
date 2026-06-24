@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 from urllib import error, request
 
+from src.intake_judges import build_judge_system_prompt, build_judge_user_prompt, parse_judge_result
+
 
 @dataclass
 class NebiusResult:
@@ -113,6 +115,49 @@ class NebiusClient:
         )
         data = result.data or {}
         return str(data.get("ticket_summary") or result.text or fallback).strip()
+
+    def score_intake_judge(
+        self,
+        judge_name: str,
+        payload: dict[str, Any],
+        fallback: dict[str, Any],
+    ) -> dict[str, Any]:
+        fallback_result = dict(fallback)
+        fallback_result.setdefault("score", 0.0)
+        fallback_result.setdefault("label", "fail")
+        fallback_result.setdefault("rationale", "Judge fallback was used.")
+
+        if not self.enabled:
+            fallback_result.update(
+                {
+                    "used_llm": False,
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                }
+            )
+            return fallback_result
+
+        result = self._chat_json(
+            system_prompt=build_judge_system_prompt(judge_name),
+            user_prompt=build_judge_user_prompt(payload),
+        )
+        parsed = parse_judge_result(result.data if result.data is not None else result.text)
+        usage = result.usage or {}
+        prompt_tokens = int(usage.get("prompt_tokens") or 0)
+        completion_tokens = int(usage.get("completion_tokens") or 0)
+        total_tokens = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
+        merged = dict(fallback_result)
+        merged.update(parsed)
+        merged.update(
+            {
+                "used_llm": True,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+            }
+        )
+        return merged
 
     def decide_intake_route(
         self,

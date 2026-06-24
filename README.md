@@ -34,9 +34,13 @@ Current baseline metrics:
 
 - route accuracy
 - intake hold safety
+- clarification quality
+- issue capture completeness
 - p50 latency
 - token usage
 - estimated cost
+
+The evaluation now uses LLM-as-judge scoring for clarification quality and issue capture completeness on the full trace/conversation, while route correctness remains exact-match and deterministic.
 
 Run the baseline eval:
 

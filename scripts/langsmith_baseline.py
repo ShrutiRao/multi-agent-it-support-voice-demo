@@ -17,6 +17,11 @@ if str(ROOT_DIR) not in sys.path:
 from openpyxl import load_workbook
 from langsmith import Client, traceable
 from langsmith.evaluation import EvaluationResult, run_evaluator
+from src.intake_judges import (
+    build_clarification_judge_payload,
+    build_issue_capture_judge_payload,
+    serialize_trace_for_judge,
+)
 from src.nebius_client import NebiusClient
 
 
@@ -264,10 +269,90 @@ def intake_hold_safety(run, example) -> EvaluationResult:
     )
 
 
+def _judge_fallback(label: str, score: float, rationale: str, **details: Any) -> dict[str, Any]:
+    payload = {"score": score, "label": label, "rationale": rationale}
+    if details:
+        payload["details"] = details
+    return payload
+
+
+def _judge_case_fields(run, example) -> dict[str, Any]:
+    inputs = example.inputs or {}
+    outputs = example.outputs or {}
+    run_outputs = run.outputs or {}
+    return {
+        "case_id": str(inputs.get("case_id") or (example.metadata or {}).get("case_id") or ""),
+        "caller_input": str(inputs.get("caller_input") or ""),
+        "hidden_context": str(inputs.get("hidden_context") or ""),
+        "expected_next_action": str(outputs.get("expected_next_action") or ""),
+        "expected_route": str(outputs.get("expected_route") or ""),
+        "observed_next_action": str(run_outputs.get("observed_next_action") or ""),
+        "observed_route": str(run_outputs.get("observed_route") or ""),
+        "conversation_text": serialize_trace_for_judge(run),
+    }
+
+
+@run_evaluator
+def clarification_quality(run, example) -> EvaluationResult:
+    fields = _judge_case_fields(run, example)
+    fallback = _judge_fallback(
+        "partial" if fields["observed_next_action"] == "ask_clarifying_question" else "fail",
+        0.5 if fields["observed_next_action"] == "ask_clarifying_question" else 0.0,
+        "Fallback clarification score derived from observed action.",
+        expected_next_action=fields["expected_next_action"],
+        observed_next_action=fields["observed_next_action"],
+    )
+    result = NebiusClient().score_intake_judge(
+        "clarification_quality",
+        build_clarification_judge_payload(**fields),
+        fallback=fallback,
+    )
+    return EvaluationResult(
+        key="clarification_quality",
+        score=float(result.get("score") or 0.0),
+        value=result,
+        comment=str(result.get("rationale") or ""),
+    )
+
+
+@run_evaluator
+def issue_capture_completeness(run, example) -> EvaluationResult:
+    fields = _judge_case_fields(run, example)
+    fallback = _judge_fallback(
+        "pass" if fields["observed_route"] == fields["expected_route"] else "fail",
+        1.0 if fields["observed_route"] == fields["expected_route"] else 0.0,
+        "Fallback issue-capture score derived from route agreement.",
+        expected_route=fields["expected_route"],
+        observed_route=fields["observed_route"],
+    )
+    result = NebiusClient().score_intake_judge(
+        "issue_capture_completeness",
+        build_issue_capture_judge_payload(**fields),
+        fallback=fallback,
+    )
+    return EvaluationResult(
+        key="issue_capture_completeness",
+        score=float(result.get("score") or 0.0),
+        value=result,
+        comment=str(result.get("rationale") or ""),
+    )
+
+
+def build_evaluators() -> list[Any]:
+    return [
+        route_exact_match,
+        intake_hold_safety,
+        clarification_quality,
+        issue_capture_completeness,
+    ]
+
+
 def summarize_runs(results: Any) -> dict[str, float]:
     row_results = list(results)
     route_scores: list[float] = []
     safety_scores: list[float] = []
+    clarification_scores: list[float] = []
+    issue_capture_scores: list[float] = []
     elapsed_ms_values: list[float] = []
     prompt_tokens: list[float] = []
     completion_tokens: list[float] = []
@@ -278,6 +363,10 @@ def summarize_runs(results: Any) -> dict[str, float]:
         by_key = {result.key: result for result in eval_results}
         route_scores.append(float(by_key["route_exact_match"].score or 0.0))
         safety_scores.append(float(by_key["intake_hold_safety"].score or 0.0))
+        if "clarification_quality" in by_key:
+            clarification_scores.append(float(by_key["clarification_quality"].score or 0.0))
+        if "issue_capture_completeness" in by_key:
+            issue_capture_scores.append(float(by_key["issue_capture_completeness"].score or 0.0))
         run = row["run"]
         outputs = run.outputs or {}
         if outputs.get("elapsed_ms") is not None:
@@ -296,6 +385,8 @@ def summarize_runs(results: Any) -> dict[str, float]:
     return {
         "route_accuracy": float(mean(route_scores)) if route_scores else 0.0,
         "intake_hold_safety": float(mean(safety_scores)) if safety_scores else 0.0,
+        "clarification_quality": float(mean(clarification_scores)) if clarification_scores else 0.0,
+        "issue_capture_completeness": float(mean(issue_capture_scores)) if issue_capture_scores else 0.0,
         "p50_latency_s": float(sorted(elapsed_ms_values)[len(elapsed_ms_values) // 2] / 1000.0)
         if elapsed_ms_values
         else 0.0,
@@ -344,7 +435,7 @@ def main() -> int:
     results = client.evaluate(
         target,
         data=args.dataset_name,
-        evaluators=[route_exact_match, intake_hold_safety],
+        evaluators=build_evaluators(),
         metadata={
             "agent_under_test": "Week 3 Intake Orchestrator",
             "baseline_type": args.mode,
