@@ -2,6 +2,27 @@
 
 This document captures the current LangSmith baseline for the Week 3 intake orchestrator.
 
+## Evaluation One Liner
+
+I will measure first-pass resolution rate, correct escalation/handoff rate, and median time-to-correct-route on the Week 3 Intake Orchestrator using a golden dataset of 30 labeled cases drawn from real IT support patterns and covering happy-path resolution, ambiguous intake, failed verification, known incidents, and unresolved escalation, with a rubric-based LLM judge plus human spot-checks. Pass bar: >=90% correct outcome, >=95% correct routing, p50 latency <=3s, and cost <=$0.10 per call. I will run this in LangSmith and report the delta from the deterministic baseline to the post-improvement version.
+
+## Framework
+
+| Field | Details |
+|---|---|
+| Agent under test | Week 3 Intake Orchestrator for employee IT support, responsible for greeting the caller, collecting enough issue detail, preventing premature transfer, and routing to verification, triage, or escalation. |
+| User outcome | The caller reaches the correct support path quickly without being bounced around, and the agent does not hand off before it understands the issue well enough to act. |
+| Metrics | Correct final route rate, premature handoff rate, issue capture completeness, median time-to-correct-route, cost per successful case |
+| Judge method | Correct final route rate: code-based exact match. Premature handoff rate: code-based trace rule. Issue capture completeness: LLM-as-judge with rubric. Median time-to-correct-route: code-based from timestamps. Cost per successful case: code-based from LangSmith tokens/cost |
+| Golden dataset | 30 to 40 labeled cases drawn from real IT support patterns, with a mix of happy-path resolution, ambiguous intake and clarification, failed verification, known-incident escalation, and unresolved issue escalation. Each case is hand-labeled with expected route, required clarifying behavior, forbidden behaviors, and acceptable final outcome. |
+| Pass bar | Correct final route: >=95%. Premature handoff rate: <=5%. Issue capture completeness: >=90%. Median time-to-correct-route: <=3s. Cost per successful case: <=$0.10 |
+| Instrumentation | Trace the full run in LangSmith: root run per case, sub-runs per agent turn, tool calls, retries, prompt/model version, tokens in/out, latency, route decision, handoff reason, and final outcome. |
+| Baseline run | Run the current agent on the full golden dataset before any changes and report the metric values, plus the LangSmith experiment link. |
+| Failure analysis | Top 3 failure modes by frequency, each with one representative trace and rough cost impact: premature transfer on weak issue signal, ambiguous intake not resolved before routing, wrong route for known incident versus individual issue. |
+| Improvement hypotheses | Tighten the intake prompt to require an explicit issue statement before routing. Add a routing gate or classifier before handoff. Improve issue extraction so the agent captures the key details earlier. Add retrieval or policy checks for known incidents so escalation happens sooner when appropriate. |
+| Post-improvement run | Re-run the exact same golden dataset after changes and report the new metrics, the delta versus baseline, and the LangSmith experiment link. |
+| What is next | The most likely remaining failure is ambiguous-intake handling. Next, I would expand borderline cases, tighten the clarification policy, and add production monitoring for premature handoff rate, escalation accuracy, and cost drift. |
+
 ## Baseline Snapshot
 
 - Date of run: June 22, 2026
