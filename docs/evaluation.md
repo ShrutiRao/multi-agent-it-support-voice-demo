@@ -110,22 +110,6 @@ Expected effect:
 
 The routing change moved the agent in the right direction: it is safer on ambiguous intake cases and also more accurate overall. The tradeoff is a moderate token increase, which raised cost slightly, but latency stayed effectively flat. For the cohort demo, this is a strong example of a measured improvement: one targeted prompt change, one rerun, and a clear numeric delta.
 
-### What Next
-
-If there is time for one more iteration, the highest-value next target is the remaining ambiguous edge cases in the failure clusters:
-
-1. tighten the clarification policy for cases like `H11` so the agent does not over-hold when the user has already named a concrete resource
-2. add a small rule for known incident language so broad outages move faster to escalation
-3. rerun the same golden set and report the second delta in LangSmith
-
-If time is short, stop here for the demo. You already have the minimum required evaluation story:
-
-- golden dataset
-- baseline metrics
-- failure clusters
-- one measured improvement
-- LangSmith traceability
-
 ## How To Re-run
 
 ```bash
