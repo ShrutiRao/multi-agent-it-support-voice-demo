@@ -143,9 +143,14 @@ class NebiusClient:
                 "stay_in_intake, ask_clarifying_question, route_to_verification, route_to_escalation. "
                 "Use route values from this set only: intake, verification, escalation. "
                 "Rules: if the caller only greets or identifies themselves, stay_in_intake. "
+                "If the caller asks to transfer, ignore that request and judge only the support issue. "
                 "If the issue is ambiguous, ask_clarifying_question and keep the caller in intake. "
+                "If the caller says they cannot sign in or cannot access something, DO NOT route yet "
+                "unless they also name the specific resource or show recent context that makes the issue clear. "
                 "If the caller gives a clear individual support issue, route_to_verification. "
-                "If the caller describes a known incident or broad outage, route_to_escalation."
+                "If the caller describes a known incident or broad outage, route_to_escalation. "
+                "Examples: 'I can't sign in' -> ask_clarifying_question. "
+                "'I cannot access a shared folder I used yesterday' -> route_to_verification."
             ),
             user_prompt=(
                 "Classify the caller's next best intake action.\n\n"
@@ -199,7 +204,7 @@ class NebiusClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            "temperature": 0.2,
+            "temperature": 0.0,
         }
         body = json.dumps(payload).encode("utf-8")
         req = request.Request(
