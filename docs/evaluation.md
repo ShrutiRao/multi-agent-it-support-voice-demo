@@ -23,6 +23,12 @@ I will measure first-pass resolution rate, correct escalation/handoff rate, and 
 | Post-improvement run | Re-run the exact same golden dataset after changes and report the new metrics, the delta versus baseline, and the LangSmith experiment link. |
 | What is next | The most likely remaining failure is ambiguous-intake handling. Next, I would expand borderline cases, tighten the clarification policy, and add production monitoring for premature handoff rate, escalation accuracy, and cost drift. |
 
+## Evaluation Loop
+
+![Agent Evaluation Loop](agent_evaluation_loop_white_background.jpg)
+
+This visual summarizes the evaluation cycle end to end: create the golden dataset, run the baseline, cluster the failures, make one targeted fix, rerun the same cases, and compare the result with both exact-match and LLM-as-judge metrics.
+
 ### Judge Notes
 
 The evaluation now includes two LLM-as-judge metrics on the full trace/conversation:
