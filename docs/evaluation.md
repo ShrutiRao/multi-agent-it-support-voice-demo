@@ -76,7 +76,7 @@ The judge calibration run looks healthy: the route and safety metrics stayed str
 
 In the full 30-case run, the intake orchestrator routed correctly on 27 of 30 cases and stayed safely in intake on 28 of 30, which shows the prompt change improved the core decision boundary. The LLM judges also surfaced the remaining weakness: the agent is still less complete on conversation depth than on final routing, especially in adversarial and borderline cases. That means the system is good enough for a demo story, but the next improvement should focus on stronger clarification handling and better resistance to prompt-injection-style inputs.
 
-### What the Full Run Says
+### What The Full Run Says
 
 The routing side is in good shape: 27 of 30 cases matched the expected next action, and the only route misses were concentrated in adversarial or edge-case prompts. The main routing failures were:
 
@@ -93,6 +93,17 @@ The judge metrics tell a similar story:
 - Happy-path cases look good, which is what you want for a demo-ready evaluation: routine calls work, and the remaining failures are concentrated where you would expect them.
 
 Bottom line: the full run supports the story that the prompt fix improved the core routing behavior, while the LLM judges expose the remaining weakness in conversation depth and adversarial handling.
+
+## Final Evaluation Summary
+
+This evaluation shows that the Week 3 Intake Orchestrator is now measurably stronger after one targeted prompt change.
+
+- **Baseline:** the initial LangSmith run on `intake-routing-golden-v1` showed `route_accuracy` at `0.8000` and `intake_hold_safety` at `0.8667`, which confirmed the agent was still too inconsistent on ambiguous intake and premature handoff cases.
+- **Failure clusters:** the main issues grouped into ambiguous intake without enough clarification, premature routing from weak identity or greeting signals, known-incident confusion, and one likely label or scoring anomaly.
+- **Fix applied:** the prompt was tightened so vague sign-in and access issues do not automatically route to verification, one clarifying question is required unless the caller gives specific recent context, and routing temperature was lowered for consistency.
+- **Measured delta:** the post-improvement LangSmith run increased `route_accuracy` to `0.9000` and `intake_hold_safety` to `0.9333`. Latency stayed essentially flat at `3.1727s` p50, while cost rose slightly because the prompt became more explicit.
+
+Bottom line: the prompt change improved the two most important outcome metrics for this agent, which is exactly what the Week 4 evaluation is supposed to prove. The agent is now safer on intake and more accurate on routing, with a clear before-and-after measurement in LangSmith.
 
 ## Baseline Snapshot
 
@@ -202,20 +213,9 @@ Expected effect:
 
 The routing change moved the agent in the right direction: it is safer on ambiguous intake cases and also more accurate overall. The tradeoff is a moderate token increase, which raised cost slightly, but latency stayed effectively flat. For the cohort demo, this is a strong example of a measured improvement: one targeted prompt change, one rerun, and a clear numeric delta.
 
-### What's Next
+### What’s Next
 
 The next improvement target is adversarial and borderline intake handling, especially cases like prompt injection or callers who refuse to describe the issue. If I had another iteration, I would tighten the clarification policy, add a stronger adversarial guardrail, and rerun the same golden dataset to measure whether `clarification_quality` and `issue_capture_completeness` improve without hurting route accuracy.
-
-## Final Evaluation Summary
-
-This evaluation shows that the Week 3 Intake Orchestrator is now measurably stronger after one targeted prompt change, and the judge metrics add a second layer of evidence on top of route accuracy.
-
-- **Baseline:** the initial LangSmith run on `intake-routing-golden-v1` showed `route_accuracy` at `0.8000` and `intake_hold_safety` at `0.8667`, which confirmed the agent was still too inconsistent on ambiguous intake and premature handoff cases.
-- **Failure clusters:** the main issues grouped into ambiguous intake without enough clarification, premature routing from weak identity or greeting signals, known-incident confusion, and one likely label or scoring anomaly.
-- **Fix applied:** the prompt was tightened so vague sign-in and access issues do not automatically route to verification, one clarifying question is required unless the caller gives specific recent context, and routing temperature was lowered for consistency.
-- **Measured delta:** the post-improvement LangSmith run increased `route_accuracy` to `0.9000` and `intake_hold_safety` to `0.9333`. The latest full run also shows `clarification_quality` at `0.8150` and `issue_capture_completeness` at `0.7917`, which means the agent is routing well but still has room to improve on conversation depth.
-
-Bottom line: the prompt change improved the two most important outcome metrics for this agent, and the LLM judges show where the next iteration should focus. The agent is now safer on intake, more accurate on routing, and easier to defend with measured before-and-after results in LangSmith.
 
 ### Status Checklist
 
@@ -228,10 +228,6 @@ Bottom line: the prompt change improved the two most important outcome metrics f
 - [x] LLM-as-judge metrics added for clarification quality and issue capture completeness
 - [x] Evaluation docs updated with baseline, calibration, and full-run results
 - [x] README points to the evaluation writeup
-
-**In Progress**
-- [ ] Manual review of the remaining adversarial and borderline traces in LangSmith
-- [ ] Deciding whether to stop here for the demo or do one more improvement pass
 
 **Left To Do**
 - [ ] If you do another pass, tighten adversarial handling and clarification policy
