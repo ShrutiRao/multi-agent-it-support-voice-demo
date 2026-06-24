@@ -23,6 +23,17 @@ I will measure first-pass resolution rate, correct escalation/handoff rate, and 
 | Post-improvement run | Re-run the exact same golden dataset after changes and report the new metrics, the delta versus baseline, and the LangSmith experiment link. |
 | What is next | The most likely remaining failure is ambiguous-intake handling. Next, I would expand borderline cases, tighten the clarification policy, and add production monitoring for premature handoff rate, escalation accuracy, and cost drift. |
 
+## Final Evaluation Summary
+
+This evaluation shows that the Week 3 Intake Orchestrator is now measurably stronger after one targeted prompt change.
+
+- **Baseline:** the initial LangSmith run on `intake-routing-golden-v1` showed `route_accuracy` at `0.8000` and `intake_hold_safety` at `0.8667`, which confirmed the agent was still too inconsistent on ambiguous intake and premature handoff cases.
+- **Failure clusters:** the main issues grouped into ambiguous intake without enough clarification, premature routing from weak identity or greeting signals, known-incident confusion, and one likely label or scoring anomaly.
+- **Fix applied:** the prompt was tightened so vague sign-in and access issues do not automatically route to verification, one clarifying question is required unless the caller gives specific recent context, and routing temperature was lowered for consistency.
+- **Measured delta:** the post-improvement LangSmith run increased `route_accuracy` to `0.9000` and `intake_hold_safety` to `0.9333`. Latency stayed essentially flat at `3.1727s` p50, while cost rose slightly because the prompt became more explicit.
+
+Bottom line: the prompt change improved the two most important outcome metrics for this agent, which is exactly what the Week 4 evaluation is supposed to prove. The agent is now safer on intake and more accurate on routing, with a clear before-and-after measurement in LangSmith.
+
 ## Baseline Snapshot
 
 - Date of run: June 22, 2026
