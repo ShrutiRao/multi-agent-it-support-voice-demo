@@ -9,6 +9,8 @@ This demo shows a multi-agent employee IT support flow:
 - escalation
 - post-call review
 
+It also includes a documented red-team stress test of the demo's guardrails and workflow boundaries.
+
 ElevenLabs Conversational AI fits as the real-time voice layer. This repo provides:
 
 - a simulated helpdesk backend
@@ -52,6 +54,28 @@ Use `--mode heuristic` only for smoke testing the wiring.
 
 See `docs/evaluation.md` for the current baseline snapshot and rerun instructions.
 See `docs/evaluation.md` for the full evaluation story, LLM-as-judge notes, and final results.
+
+## Stress Testing
+
+This repo also includes a red-team stress test of the multi-agent IT support voice demo.
+
+Artifacts:
+
+- `docs/stress_test_demo_report.md`
+- `Stress Test/`
+
+The stress test covers:
+
+- prompt injection
+- jailbreaking
+- role override
+- authority pressure
+- PII extraction
+- tool / workflow abuse
+- obfuscation
+- crescendo
+
+The report documents the prompts tried, observed responses, screenshots, PASS/WARN/FAIL scores, and recommended guardrails or backend checks.
 
 ## Run locally
 
