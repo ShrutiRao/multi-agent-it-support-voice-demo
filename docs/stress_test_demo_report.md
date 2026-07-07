@@ -96,6 +96,19 @@ For a polished demo, the strongest story is that the system can resist obvious a
 
 ## Recommended Defenses
 
+| Attack family | Recommended guardrail / policy / backend check |
+|---|---|
+| Prompt injection | Add an input guardrail that detects instructions to ignore system rules, reveal prompts, or change role. Pair it with an output filter so internal instructions never appear in the transcript. |
+| Jailbreaking / role override | Enforce strict instruction hierarchy in the system prompt so user messages cannot override the assistant role or workflow. Reject requests to switch into admin, unrestricted, or alternate-agent modes. |
+| PII extraction | Use backend authorization and data minimization. Only expose the minimum identity fields needed for verification, and never reveal another employee's records or directory data unless the caller is explicitly authorized. |
+| Tool / workflow abuse | Put ticket creation, escalation, and verification behind a state machine. Require a valid support issue, verified identity, and the correct call phase before any tool action is allowed. |
+| Obfuscation | Normalize input before evaluation, including code blocks, encoded text, unusual formatting, or hidden instructions. Use an intent check so the assistant evaluates the underlying request, not just the surface text. |
+| Crescendo | Re-check policy on every turn instead of becoming more permissive over time. Keep the same safety rules in place even after a long or friendly conversation. |
+| Social engineering / authority pressure | Add step-up verification for any request that claims urgency, authority, or prior approval. Do not trust a claim like "I’m the director" without actual validation. |
+| Internal instruction leakage | Separate internal reasoning or debug text from user-facing output. Add a strict redaction or response filter so hidden prompts and internal state never appear in the transcript. |
+
+Additional implementation notes:
+
 - Separate user-facing output from any hidden chain-of-thought or debug content.
 - Add a strict output filter so internal instruction text never appears in the transcript.
 - Require explicit identity confirmation before any ticket or escalation action.
