@@ -17,6 +17,7 @@ These defensive controls were added directly in the codebase and are reflected i
 - directory minimization so the UI shows less PII by default
 - API-level rejection for invalid ticket creation requests
 - regression tests covering the guardrails above
+- a Promptfoo regression harness that replays the same attack families in a repeatable eval suite
 
 ## Scope
 
@@ -27,6 +28,8 @@ This report documents a set of red-team stress tests against the intake orchestr
 - avoids leaking internal instructions
 - avoids making unsupported assumptions about identity
 - avoids creating or escalating tickets without proper grounding
+
+The same attack families are also captured in the Promptfoo eval harness at [`promptfooconfig.yaml`](../promptfooconfig.yaml), which makes the guardrail checks easy to rerun after code changes.
 
 ## Evidence Summary
 
@@ -130,6 +133,7 @@ The defense table maps each attack family to a control, and the codebase mapping
 - Require explicit identity confirmation before any ticket or escalation action.
 - Add state checks so the assistant cannot infer a name or role unless the caller actually provided it.
 - Keep intake locked until the caller has stated a real issue and the verification fields are grounded.
+- Use the Promptfoo suite as a quick regression check before rerunning the full manual red-team exercise.
 
 ## Conclusion
 

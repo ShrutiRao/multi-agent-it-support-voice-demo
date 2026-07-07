@@ -62,7 +62,11 @@ This repo also includes a red-team stress test of the multi-agent IT support voi
 Artifacts:
 
 - `docs/stress_test_demo_report.md`
+- `docs/promptfoo_stress_testing.md`
 - `Stress Test/`
+- `promptfooconfig.yaml`
+- `promptfoo/guardrail_target.py`
+- `promptfoo/stress_test_cases.yaml`
 
 The stress test covers:
 
@@ -75,7 +79,16 @@ The stress test covers:
 - obfuscation
 - crescendo
 
-The report documents the prompts tried, observed responses, screenshots, PASS/WARN/FAIL scores, and recommended guardrails or backend checks.
+The manual report documents the prompts tried, observed responses, screenshots, PASS/WARN/FAIL scores, and recommended guardrails or backend checks.
+
+Promptfoo adds a repeatable regression harness for the same attack families:
+
+```bash
+promptfoo eval -c promptfooconfig.yaml
+```
+
+See [`docs/promptfoo_stress_testing.md`](docs/promptfoo_stress_testing.md) for the full setup and run instructions.
+Promptfoo requires Node.js; if `promptfoo` is not recognized, install Node.js first and then use either `npx promptfoo@latest eval -c promptfooconfig.yaml` or `npm install -g promptfoo`.
 
 For a quick visual recap, see the summary figure in `docs/stress_test_demo_report.md`.
 

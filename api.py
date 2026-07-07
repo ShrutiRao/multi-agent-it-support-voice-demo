@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from src.promptfoo_harness import render_promptfoo_output
 from src.local_env import load_local_env
 from src.service import HelpdeskService, redact_internal_annotations
 
@@ -30,6 +31,10 @@ class TicketCreateRequest(BaseModel):
     priority: str = Field(default="medium")
     verification_status: str = Field(default="unverified")
     attempted_steps: list[str] = Field(default_factory=list)
+
+
+class PromptfooStressTestRequest(BaseModel):
+    prompt: str
 
 
 @app.get("/health")
@@ -106,6 +111,11 @@ def normalize_post_call_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if "issue_category" not in state:
         state["issue_category"] = infer_issue_category(state, transcript)
     return {"call_id": str(call_id), "transcript": transcript, "state": state}
+
+
+@app.post("/promptfoo/stress-test")
+def promptfoo_stress_test(payload: PromptfooStressTestRequest) -> dict[str, str]:
+    return {"output": render_promptfoo_output(payload.prompt)}
 
 
 def normalize_transcript(raw: Any) -> list[dict[str, str]]:
