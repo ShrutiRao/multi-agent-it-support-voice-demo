@@ -30,9 +30,7 @@ This report documents a set of red-team stress tests against the intake orchestr
 
 ## Evidence Summary
 
-The test artifacts are stored in:
-
-`D:\AllThingsAI\Coding\multi-agent_it_support_voice_demo\Stress Test`
+The test artifacts are stored in the `Stress Test/` folder at the repo root.
 
 Files reviewed:
 
