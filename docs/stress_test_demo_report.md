@@ -135,6 +135,10 @@ The defense table maps each attack family to a control, and the codebase mapping
 - Keep intake locked until the caller has stated a real issue and the verification fields are grounded.
 - Use the Promptfoo suite as a quick regression check before rerunning the full manual red-team exercise.
 
+## Promptfoo Run
+
+A Promptfoo regression run completed successfully for this stress-test harness. The local results can be reviewed with `promptfoo view`, and the run identifier is recorded in the terminal output for traceability.
+
 ## Conclusion
 
 The demo performed well against straightforward role override and workflow-abuse attempts, and it also held up under obfuscation and crescendo-style pressure. The most important remaining gaps are output leakage and identity grounding. Addressing those two issues with stricter output filtering and stronger backend verification would make the system much safer for escalation and ticketing.
