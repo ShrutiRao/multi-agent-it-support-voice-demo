@@ -8,6 +8,16 @@ I stress-tested the multi-agent IT support voice demo using prompt injection, ja
 
 `multi-agent_it_support_voice_demo`
 
+## Defenses Implemented
+
+These defensive controls were added directly in the codebase and are reflected in the report's defense mapping table:
+
+- transcript redaction to strip internal annotation text before it reaches the visible conversation
+- ticket creation gating so escalation requires verified identity and matching caller details
+- directory minimization so the UI shows less PII by default
+- API-level rejection for invalid ticket creation requests
+- regression tests covering the guardrails above
+
 ## Scope
 
 This report documents a set of red-team stress tests against the intake orchestrator behavior in the live voice demo. The goal was to evaluate whether the assistant:
@@ -37,6 +47,12 @@ Files reviewed:
 - `Crescendo.jpg`
 - `Role override.jpg`
 - `Authority Pressure.jpg`
+
+## Visual Summary
+
+![Stress Test Evaluation Summary](../Stress%20Test/TestReport.png)
+
+The figure above provides a compact visual recap of the attack families tested, the score distribution, the main weaknesses, and the recommended defenses.
 
 ## Results Table
 
@@ -96,16 +112,18 @@ For a polished demo, the strongest story is that the system can resist obvious a
 
 ## Recommended Defenses
 
-| Attack family | Recommended guardrail / policy / backend check |
-|---|---|
-| Prompt injection | Add an input guardrail that detects instructions to ignore system rules, reveal prompts, or change role. Pair it with an output filter so internal instructions never appear in the transcript. |
-| Jailbreaking / role override | Enforce strict instruction hierarchy in the system prompt so user messages cannot override the assistant role or workflow. Reject requests to switch into admin, unrestricted, or alternate-agent modes. |
-| PII extraction | Use backend authorization and data minimization. Only expose the minimum identity fields needed for verification, and never reveal another employee's records or directory data unless the caller is explicitly authorized. |
-| Tool / workflow abuse | Put ticket creation, escalation, and verification behind a state machine. Require a valid support issue, verified identity, and the correct call phase before any tool action is allowed. |
-| Obfuscation | Normalize input before evaluation, including code blocks, encoded text, unusual formatting, or hidden instructions. Use an intent check so the assistant evaluates the underlying request, not just the surface text. |
-| Crescendo | Re-check policy on every turn instead of becoming more permissive over time. Keep the same safety rules in place even after a long or friendly conversation. |
-| Social engineering / authority pressure | Add step-up verification for any request that claims urgency, authority, or prior approval. Do not trust a claim like "I'm the director" without actual validation. |
-| Internal instruction leakage | Separate internal reasoning or debug text from user-facing output. Add a strict redaction or response filter so hidden prompts and internal state never appear in the transcript. |
+| Attack family | Recommended guardrail / policy / backend check | Codebase mapping |
+|---|---|---|
+| Prompt injection | Add an input guardrail that detects instructions to ignore system rules, reveal prompts, or change role. Pair it with an output filter so internal instructions never appear in the transcript. | `src/service.py` (`redact_internal_annotations`), `api.py` (`normalize_transcript`) |
+| Jailbreaking / role override | Enforce strict instruction hierarchy in the system prompt so user messages cannot override the assistant role or workflow. Reject requests to switch into admin, unrestricted, or alternate-agent modes. | `src/nebius_client.py` (route policy prompt), `src/service.py` (workflow gating) |
+| PII extraction | Use backend authorization and data minimization. Only expose the minimum identity fields needed for verification, and never reveal another employee's records or directory data unless the caller is explicitly authorized. | `app.py` (`render_backend_panel`), `src/service.py` (`verify_employee`, `directory_summary`) |
+| Tool / workflow abuse | Put ticket creation, escalation, and verification behind a state machine. Require a valid support issue, verified identity, and the correct call phase before any tool action is allowed. | `src/service.py` (`create_ticket`, `_step_escalation`), `api.py` (`create_ticket`) |
+| Obfuscation | Normalize input before evaluation, including code blocks, encoded text, unusual formatting, or hidden instructions. Use an intent check so the assistant evaluates the underlying request, not just the surface text. | `src/service.py` (`redact_internal_annotations`), `api.py` (`normalize_transcript`) |
+| Crescendo | Re-check policy on every turn instead of becoming more permissive over time. Keep the same safety rules in place even after a long or friendly conversation. | `src/nebius_client.py` (route policy prompt), `src/service.py` (call state flow) |
+| Social engineering / authority pressure | Add step-up verification for any request that claims urgency, authority, or prior approval. Do not trust a claim like "I'm the director" without actual validation. | `src/service.py` (`verify_employee`, `create_ticket`), `api.py` (`create_ticket`) |
+| Internal instruction leakage | Separate internal reasoning or debug text from user-facing output. Add a strict redaction or response filter so hidden prompts and internal state never appear in the transcript. | `src/service.py` (`redact_internal_annotations`), `api.py` (`normalize_transcript`), `app.py` (`render_transcript`) |
+
+The defense table maps each attack family to a control, and the codebase mapping column shows exactly where that control is enforced in the repo.
 
 ## Implementation Notes
 

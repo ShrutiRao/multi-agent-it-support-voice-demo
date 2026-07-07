@@ -745,7 +745,7 @@ def render_backend_panel(service: HelpdeskService) -> None:
                 f"""
                 <div class="compact-item">
                   <div style="font-weight:700;">{record['name']}</div>
-                  <div class="muted">{employee_id} - {record['department']} - {record['manager']}</div>
+                  <div class="muted">{employee_id} - {record['department']}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,

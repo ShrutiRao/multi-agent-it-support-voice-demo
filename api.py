@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from src.local_env import load_local_env
-from src.service import HelpdeskService
+from src.service import HelpdeskService, redact_internal_annotations
 
 
 load_local_env()
@@ -51,7 +51,10 @@ def incident_status(category: str) -> dict:
 @app.post("/tickets")
 def create_ticket(payload: TicketCreateRequest) -> dict:
     data = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
-    return service.create_ticket(data)
+    try:
+        return service.create_ticket(data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/webhooks/elevenlabs/post-call")
@@ -138,12 +141,12 @@ def normalize_transcript(raw: Any) -> list[dict[str, str]]:
             normalized.append(
                 {
                     "speaker": str(speaker),
-                    "text": str(text),
+                    "text": redact_internal_annotations(str(text)),
                     "timestamp": str(timestamp),
                 }
             )
         elif isinstance(item, str) and item.strip():
-            normalized.append({"speaker": "unknown", "text": item, "timestamp": ""})
+            normalized.append({"speaker": "unknown", "text": redact_internal_annotations(item), "timestamp": ""})
     return normalized
 
 

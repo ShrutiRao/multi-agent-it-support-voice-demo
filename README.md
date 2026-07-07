@@ -77,6 +77,8 @@ The stress test covers:
 
 The report documents the prompts tried, observed responses, screenshots, PASS/WARN/FAIL scores, and recommended guardrails or backend checks.
 
+For a quick visual recap, see the summary figure in `docs/stress_test_demo_report.md`.
+
 ## Run locally
 
 Install dependencies:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -17,6 +18,23 @@ def scenario_by_id(scenario_id: str) -> Scenario:
         if scenario.id == scenario_id:
             return scenario
     raise KeyError(f"Unknown scenario: {scenario_id}")
+
+
+_INTERNAL_ANNOTATION_MARKERS = (
+    "The user is attempting",
+    "My instructions state:",
+    "Therefore, I must",
+    "I need to re-engage the user.",
+)
+
+
+def redact_internal_annotations(text: str) -> str:
+    cleaned = str(text)
+    for marker in _INTERNAL_ANNOTATION_MARKERS:
+        if marker in cleaned:
+            cleaned = cleaned.split(marker, 1)[0].rstrip()
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    return cleaned
 
 
 @dataclass
@@ -83,16 +101,14 @@ class HelpdeskService:
         self.tickets: list[dict[str, Any]] = []
 
     def verify_employee(self, payload: dict[str, Any]) -> dict[str, Any]:
-        employee_id = payload.get("employee_id")
-        employee_name = payload.get("employee_name", "").strip().lower()
+        employee_id = str(payload.get("employee_id") or "").strip()
+        employee_name = str(payload.get("employee_name") or "").strip().lower()
         record = self.directory.get(employee_id) if employee_id else None
-        matched_by_name = False
         if record is None and employee_name:
             for candidate_id, candidate in self.directory.items():
                 if candidate["name"].lower() == employee_name:
                     record = candidate
                     employee_id = candidate_id
-                    matched_by_name = True
                     break
         verified = bool(
             record
@@ -103,7 +119,7 @@ class HelpdeskService:
         return {
             "verified": verified,
             "record_found": bool(record),
-            "employee": record if record else None,
+            "employee": record if verified else None,
             "timestamp": now_iso(),
         }
 
@@ -112,6 +128,16 @@ class HelpdeskService:
         return {"category": category, **incident, "timestamp": now_iso()}
 
     def create_ticket(self, payload: dict[str, Any]) -> dict[str, Any]:
+        caller_name = str(payload.get("caller_name") or "").strip()
+        employee_id = str(payload.get("employee_id") or "").strip()
+        verification_status = str(payload.get("verification_status") or "").strip().lower()
+        employee_record = self.directory.get(employee_id) if employee_id else None
+        if verification_status != "verified":
+            raise ValueError("ticket creation requires verified identity")
+        if not employee_record:
+            raise ValueError("ticket creation requires a known employee_id")
+        if caller_name.lower() != employee_record["name"].lower():
+            raise ValueError("ticket caller name does not match verified employee_id")
         ticket_id = f"HD-{next(self._ticket_counter)}"
         ticket = {
             "ticket_id": ticket_id,
@@ -123,7 +149,13 @@ class HelpdeskService:
         return ticket
 
     def directory_summary(self) -> dict[str, Any]:
-        return {employee_id: {k: v for k, v in record.items() if k != "status"} for employee_id, record in self.directory.items()}
+        return {
+            employee_id: {
+                "name": record["name"],
+                "department": record["department"],
+            }
+            for employee_id, record in self.directory.items()
+        }
 
     def incident_summary(self) -> dict[str, Any]:
         return self.incidents
@@ -212,7 +244,13 @@ class CallOrchestrator:
         }
 
     def _append(self, state: CallState, speaker: str, text: str) -> None:
-        state.transcript.append({"speaker": speaker, "text": text, "timestamp": now_iso()})
+        state.transcript.append(
+            {
+                "speaker": speaker,
+                "text": redact_internal_annotations(text),
+                "timestamp": now_iso(),
+            }
+        )
 
     def _handoff(self, state: CallState, from_agent: str, to_agent: str, reason: str) -> None:
         state.handoffs.append(
